@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "title": {
+    "en": "DSH Community Plugins",
+    "zh": "DSH 社区插件"
+  },
+  "description": {
+    "en": "A small, hand-curated index of community plugins for DeepSeek's Harness.",
+    "zh": "精挑细选的 DeepSeek's Harness 社区插件索引。"
+  },
+  "metadata": {
+    "categories": {
+      "notifications": {
+        "title": {
+          "en": "Notifications",
+          "zh": "通知提醒"
+        }
+      }
+    },
+    "labels": {},
+    "sortKeys": {}
+  },
+  "plugins": [
+    {
+      "name": "dsh-turn-notify",
+      "title": {
+        "en": "Turn notifications",
+        "zh": "完成通知"
+      },
+      "description": {
+        "en": "Get a desktop or browser notification when a turn finishes or the agent waits for your confirmation. Includes an in-app toast, an optional chime, and per-completion deduplication across windows.",
+        "zh": "回合结束或 Agent 需要你确认时，弹出桌面/浏览器通知。附带应用内浮动提示、可选提示音，并在多窗口之间对同一次完成去重。"
+      },
+      "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJOb3RpZmljYXRpb24gYmVsbCI+CiAgPHBhdGggZD0iTTMyIDhhMTYgMTYgMCAwIDAtMTYgMTZ2MTBsLTQgOGEzIDMgMCAwIDAgMi43IDQuM2gzNC42QTMgMyAwIDAgMCA1MiA0MmwtNC04VjI0QTE2IDE2IDAgMCAwIDMyIDhaIiBmaWxsPSIjNGQ2YmZlIi8+CiAgPHBhdGggZD0iTTI2IDUwYTYgNiAwIDAgMCAxMiAwIiBmaWxsPSJub25lIiBzdHJva2U9IiM0ZDZiZmUiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iNDYiIGN5PSIxNiIgcj0iOCIgZmlsbD0iI2YyNTU1YSIvPgogIDxwYXRoIGQ9Ik00NiAxMi42djQuMk00NiAxOS44di4yIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMi40IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==",
+      "author": "Ly007-dotcom",
+      "homepage": "https://github.com/Ly007-dotcom/dsh-turn-notify#readme",
+      "repository": {
+        "url": "https://github.com/Ly007-dotcom/dsh-turn-notify"
+      },
+      "metadata": {
+        "category": "notifications",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "notification",
+          "notify",
+          "desktop",
+          "electron"
+        ],
+        "labels": [],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "1.0.0",
+          "publishTimestamp": 1794495655,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Ly007-dotcom/dsh-turn-notify",
+            "commit": "993175f5501e65163a273b895c8f14835c8c7208"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.0"
+          }
+        }
+      ]
+    }
+  ]
+}
