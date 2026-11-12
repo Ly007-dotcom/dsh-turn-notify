@@ -26,10 +26,12 @@ Multiple open windows coordinate through `localStorage`, so a single completion 
 DSH has no central plugin registry — the plugin market reads index files that each user subscribes to. This repository publishes one:
 
 ```
-https://raw.githubusercontent.com/Ly007-dotcom/dsh-turn-notify/main/market-index.json
+https://cdn.jsdelivr.net/gh/Ly007-dotcom/dsh-turn-notify@main/market-index.json
 ```
 
 Open **Settings → Plugins → Discover**, add that URL as an index source, then search for `dsh-turn-notify` and install.
+
+A GitHub raw URL works too, but its domain is unreachable on some networks; jsDelivr serves the same file as CDN JSON and is usually the better choice.
 
 See [MARKET-INDEX.md](./MARKET-INDEX.md) for the index format, how to host one yourself, and how to publish a new version.
 

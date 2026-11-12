@@ -32,7 +32,19 @@ https://<你的用户名>.github.io/<仓库名>/market-index.json
 https://Ly007-dotcom.github.io/dsh-turn-notify/market-index.json
 ```
 
+> 本仓库目前**未启用** Pages，上面这个地址还不能用。需要时在仓库
+> **Settings → Pages** 里开启即可，无需改文件。
+>
 > 注意：DSH 拒绝跟随重定向，所以必须用**最终地址**，不能用会被跳转的短链。
+
+### jsDelivr（推荐）
+
+```
+https://cdn.jsdelivr.net/gh/Ly007-dotcom/dsh-turn-notify@main/market-index.json
+```
+
+直接镜像 GitHub 仓库里的文件，无需任何配置，返回正确的 `application/json`。
+国内网络通常比 raw 稳定，也可以锁定 commit 而不是 `@main`。
 
 ### GitHub raw
 
@@ -40,8 +52,8 @@ https://Ly007-dotcom.github.io/dsh-turn-notify/market-index.json
 https://raw.githubusercontent.com/Ly007-dotcom/dsh-turn-notify/main/market-index.json
 ```
 
-最省事，无需额外配置。缺点是 raw 带 `Content-Type: text/plain`，
-DSH 用 JSON 解析所以能读，但不如 Pages 规范。
+最省事，无需额外配置。但实测在部分网络环境下 `raw.githubusercontent.com`
+**无法连接**，如果读者反馈索引加不上，优先换 jsDelivr。
 
 ### 任意静态托管
 
