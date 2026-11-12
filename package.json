@@ -1,0 +1,55 @@
+{
+  "name": "dsh-turn-notify",
+  "version": "1.0.0",
+  "description": "Desktop and browser notifications for DSH: get notified when a turn finishes or the agent waits for your confirmation.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Ly007-dotcom",
+  "homepage": "https://github.com/Ly007-dotcom/dsh-turn-notify#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ly007-dotcom/dsh-turn-notify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ly007-dotcom/dsh-turn-notify/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "notification",
+    "notify",
+    "desktop",
+    "electron",
+    "cordis"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

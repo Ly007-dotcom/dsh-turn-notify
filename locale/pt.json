@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Notificações de turno",
+    "description": "Avisa quando um turno termina ou o agente aguarda a sua confirmação."
+  }
+}
