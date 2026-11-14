@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.1
+## 1.0.1 — 2026-11-14
 
 - Separate the master reminder switch from system notification permission, with tests available without permission.
 - Synchronize preferences across windows and preserve choices in memory when storage writes fail.

@@ -96,7 +96,7 @@ Preferences synchronize within the same origin and storage partition. If storage
 
 ## Supported DSH versions
 
-Version 1.0.1 currently targets DSH `0.2.2-rc.2` and `0.2.2-rc.3` only. This is the intended compatibility range for local testing, not a claim that every OS/browser has been manually verified. The Session status service and `settings.general.item` / `shell.overlay` slots are required. See [local acceptance and release checklist](./RELEASE.md).
+Version 1.0.1 currently targets DSH `0.2.2-rc.2` and `0.2.2-rc.3` only. The maintainer records manual acceptance on macOS with DSH `0.2.2-rc.3` Desktop; plain-browser delivery has automated coverage but no recorded manual acceptance. The Session status service and `settings.general.item` / `shell.overlay` slots are required. See [acceptance and release record](./RELEASE.md).
 
 ## Privacy
 
