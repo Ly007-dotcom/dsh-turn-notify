@@ -6,9 +6,10 @@ DSH 没有中央插件仓库：任何人把这份索引的 URL 加进自己的 D
 
 ## 别人如何接入
 
-1. 打开 DSH 的 **设置 → 插件**，切到 **Discover** 标签。
+1. 打开 DSH 的 **插件** 页面，在 **Experimental plugins／实验性插件** 中启用 **Custom plugin indexes／自定义插件索引**，再切到 **Discover** 标签。
 2. 添加索引 URL：把 `market-index.json` 的公开地址粘进去。
-3. 搜索 `dsh-turn-notify`，点安装。
+3. 搜索 `dsh-turn-notify`，检查版本和来源后安装，在 **Installed／已安装** 中确认启用。
+4. 到 **设置 → 通用 → 完成通知** 检查开关、允许系统通知并发送测试通知。完整步骤及 FAQ 见 [中文指南](./README.zh-CN.md)。
 
 也可以让 DSH 的 Agent 用 `plugin_market` 工具读这个索引。
 
@@ -60,61 +61,23 @@ https://raw.githubusercontent.com/Ly007-dotcom/dsh-turn-notify/main/market-index
 Cloudflare Pages、Netlify、Vercel、对象存储均可。只要 CORS 足够宽松、
 不做重定向即可。
 
-## 索引格式校验
+## 索引校验与发布
 
-提交前用 DSH 自带的校验器验证，避免别人添加时报 `plugin-market/invalid-index`：
-
-```bash
-mkdir -p /tmp/idxcheck && cd /tmp/idxcheck
-pnpm init -y
-pnpm add @deepseek-ai/dsh-plugin-market-index
-```
-
-```js
-// verify.mjs
-import fs from 'node:fs'
-import { parseMarketIndex, marketInstallTarget, MarketIndexError } from '@deepseek-ai/dsh-plugin-market-index'
-
-const value = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
-try {
-  const index = parseMarketIndex(value, 'https://example.com/market-index.json')
-  for (const plugin of index.plugins) {
-    for (const version of plugin.versions) {
-      console.log(plugin.name, version.version, marketInstallTarget(plugin.name, version).spec)
-    }
-  }
-  console.log('index valid')
-} catch (error) {
-  if (error instanceof MarketIndexError) console.error('invalid at', error.path, '-', error.reason)
-  else throw error
-  process.exit(1)
-}
-```
+仓库已固定官方校验器为开发依赖，运行：
 
 ```bash
-node verify.mjs ./market-index.json
+npm ci --ignore-scripts
+npm run check:index
 ```
 
-## 发布新版本
+当前 1.0.1 仅供本地试用，索引继续保留已发布的 1.0.0。试用通过并提交最终源码后，在干净工作区执行：
 
-1. 改 `package.json` 的 `version`。
-2. 提交并推送，拿到新的完整 commit SHA：`git rev-parse HEAD`。
-3. 在 `market-index.json` 的 `versions` 数组**头部**加一条：
-
-```json
-{
-  "version": "1.1.0",
-  "publishTimestamp": 1762953600,
-  "source": {
-    "type": "git",
-    "url": "https://github.com/Ly007-dotcom/dsh-turn-notify",
-    "commit": "<新的 40 位完整 SHA>"
-  },
-  "engines": { "dsh": ">=0.2.2-rc.0" }
-}
+```bash
+npm run release:index -- <最终源码的40位完整SHA>
+npm run verify
 ```
 
-4. 重新跑校验。
+脚本验证提交与当前 HEAD、包版本一致，自动写入版本、实际准备时间和兼容范围，并保留历史条目。生成索引后需要另行提交和推送；完整流程见 [RELEASE.md](./RELEASE.md)。不要给 1.0.1 填入旧版源码 SHA，也不要发布带占位符的索引。
 
 几处容易踩的坑：
 

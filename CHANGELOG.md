@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 — local testing (not published)
+
+- Separate the master reminder switch from system notification permission, with tests available without permission.
+- Synchronize preferences across windows and preserve choices in memory when storage writes fail.
+- Deduplicate event identities for 24 hours with atomic IndexedDB transactions; clean expired and legacy claims, with a documented per-window fallback.
+- Cancel pending delivery after disposal/resume/disable and release audio/toast resources.
+- Add Chinese installation, FAQ, upgrade/rollback, removal and privacy documentation.
+- Add regression tests for permissions, competing windows, delayed events, expiry and lifecycle cleanup.
+
 ## 1.0.0
 
 First public release.

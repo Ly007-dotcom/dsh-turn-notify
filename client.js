@@ -18,7 +18,13 @@ window.__ModuleLoader__.load({
     const DISMISS_KEY = 'dsh-turn-notify:prompt-dismissed'
     /** Whether a short chime plays with each notice; absent means on. */
     const SOUND_KEY = 'dsh-turn-notify:sound'
-    const CLAIM_WINDOW_MS = 5000
+    const CLAIM_TTL_MS = 24 * 60 * 60 * 1000
+    const CLAIM_DB = 'dsh-turn-notify'
+    let active = false
+    let activation = 0
+    const preferenceListeners = new Set()
+    const memoryPreferences = new Map()
+    const unsavedPreferences = new Set()
     /** A goal can continue right after an idle beat; wait for a stable stop. */
     const TURN_END_DELAY_MS = 1800
 
@@ -195,6 +201,50 @@ window.__ModuleLoader__.load({
     }
     for (const id of Object.keys(soundCopy)) Object.assign(dictionaries[id], soundCopy[id])
 
+    const permissionCopy = {
+      en: {
+        allowSystem: 'Allow system notifications',
+        unasked: 'System notifications need permission. In-app reminders remain enabled.',
+        testBody: 'This is a test reminder. Check the banner, in-app card and sound.',
+      },
+      zh: {
+        allowSystem: '允许系统通知',
+        unasked: '系统通知需要授权；应用内提醒仍已开启。',
+        testBody: '这是测试提醒。请检查系统横幅、应用内卡片和声音。',
+      },
+      ja: {
+        allowSystem: 'システム通知を許可',
+        unasked: 'システム通知には許可が必要です。アプリ内通知は有効です。',
+        testBody: 'テスト通知です。バナー、アプリ内カード、音を確認してください。',
+      },
+      es: {
+        allowSystem: 'Permitir notificaciones del sistema',
+        unasked: 'El sistema requiere permiso. Los avisos dentro de la aplicación siguen activos.',
+        testBody: 'Aviso de prueba. Comprueba el banner, la tarjeta y el sonido.',
+      },
+      fr: {
+        allowSystem: 'Autoriser les notifications système',
+        unasked: 'Les notifications système nécessitent une autorisation. Les alertes dans l’application restent actives.',
+        testBody: 'Notification de test. Vérifiez la bannière, la carte et le son.',
+      },
+      de: {
+        allowSystem: 'Systembenachrichtigungen erlauben',
+        unasked: 'Systembenachrichtigungen benötigen eine Erlaubnis. Hinweise in der App bleiben aktiv.',
+        testBody: 'Testhinweis. Prüfe Banner, Karte in der App und Ton.',
+      },
+      ru: {
+        allowSystem: 'Разрешить системные уведомления',
+        unasked: 'Для системных уведомлений нужно разрешение. Уведомления в приложении включены.',
+        testBody: 'Тестовое уведомление. Проверьте баннер, карточку и звук.',
+      },
+      pt: {
+        allowSystem: 'Permitir notificações do sistema',
+        unasked: 'As notificações do sistema precisam de permissão. Os avisos na aplicação continuam ativos.',
+        testBody: 'Aviso de teste. Verifique o banner, o cartão e o som.',
+      },
+    }
+    for (const id of Object.keys(permissionCopy)) Object.assign(dictionaries[id], permissionCopy[id])
+
     const CSS = `
 .dsh-turn-notify-row {
   display: flex;
@@ -365,71 +415,69 @@ window.__ModuleLoader__.load({
 }
 `
 
-    /** Whether the switch is on; a missing value means on. */
-    function readEnabled() {
+    function readPreference(key, fallback) {
+      if (unsavedPreferences.has(key)) return memoryPreferences.get(key)
       try {
-        return globalThis.localStorage?.getItem(ENABLED_KEY) !== '0'
+        const value = globalThis.localStorage?.getItem(key)
+        const result = value == null ? fallback : value === '1'
+        memoryPreferences.set(key, result)
+        return result
       } catch (_error) {
-        return true
+        return memoryPreferences.get(key) ?? fallback
       }
     }
 
-    function writeEnabled(value) {
+    function writePreference(key, value) {
+      memoryPreferences.set(key, value)
+      unsavedPreferences.add(key)
       try {
-        globalThis.localStorage?.setItem(ENABLED_KEY, value ? '1' : '0')
+        if (globalThis.localStorage) {
+          globalThis.localStorage.setItem(key, value ? '1' : '0')
+          unsavedPreferences.delete(key)
+        }
       } catch (_error) {
-        // A blocked storage area only loses the preference, not the feature.
+        // Preserve the choice in memory even when browser storage is unavailable.
       }
+      for (const listener of preferenceListeners) listener()
+      if (!readEnabled()) clearToast()
+      if (!readEnabled() || !readSound()) stopAudio()
     }
 
-    /** Whether the one-time permission prompt was dismissed in this browser. */
-    function readDismissed() {
-      try {
-        return globalThis.localStorage?.getItem(DISMISS_KEY) === '1'
-      } catch (_error) {
-        return false
-      }
-    }
+    const readEnabled = () => readPreference(ENABLED_KEY, true)
+    const writeEnabled = value => writePreference(ENABLED_KEY, value)
+    const readDismissed = () => readPreference(DISMISS_KEY, false)
+    const writeDismissed = value => writePreference(DISMISS_KEY, value)
+    const readSound = () => readPreference(SOUND_KEY, true)
+    const writeSound = value => writePreference(SOUND_KEY, value)
 
-    function writeDismissed(value) {
-      try {
-        globalThis.localStorage?.setItem(DISMISS_KEY, value ? '1' : '0')
-      } catch (_error) {
-        // Same as above: only the prompt state is lost.
-      }
-    }
-
-    /** Whether the chime is on; a missing value means on. */
-    function readSound() {
-      try {
-        return globalThis.localStorage?.getItem(SOUND_KEY) !== '0'
-      } catch (_error) {
-        return true
-      }
-    }
-
-    function writeSound(value) {
-      try {
-        globalThis.localStorage?.setItem(SOUND_KEY, value ? '1' : '0')
-      } catch (_error) {
-        // A blocked storage area only loses the preference.
-      }
+    function usePreference(read) {
+      const [value, setValue] = React.useState(read)
+      React.useEffect(() => {
+        const update = () => setValue(read())
+        preferenceListeners.add(update)
+        update()
+        return () => preferenceListeners.delete(update)
+      }, [read])
+      return value
     }
 
     /** Lazily created audio context, reused across notices. */
     let audioContext
 
-    /**
-     * Play a short two-tone chime. Browsers only allow audio after a user
-     * gesture, so a fresh page stays silent until the user interacts once.
-     */
+    /** Release audio on mute, master-off, and plugin disposal. */
+    function stopAudio() {
+      if (audioContext) void audioContext.close().catch(() => {})
+      audioContext = undefined
+    }
+
+    /** Play a short chime when both switches and browser audio policy allow it. */
     function playChime() {
-      if (!readSound()) return
+      if (!active || !readEnabled() || !readSound()) return
       try {
         const Ctor = globalThis.AudioContext ?? globalThis.webkitAudioContext
         if (Ctor === undefined) return
         audioContext ??= new Ctor()
-        if (audioContext.state === 'suspended') void audioContext.resume()
+        if (audioContext.state === 'suspended') void audioContext.resume().catch(() => {})
         const now = audioContext.currentTime
         const gain = audioContext.createGain()
         gain.gain.setValueAtTime(0.0001, now)
@@ -463,8 +511,9 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Prove delivery end to end, right after enabling and from the test action. */
+    /** Attempt every enabled channel; the user verifies actual OS/audio delivery. */
     function fireConfirmation(t) {
+      if (!active || !readEnabled()) return
       pushToast({ title: t('enableTitle'), body: t('testBody') })
       playChime()
       if (typeof globalThis.Notification === 'undefined') return
@@ -480,21 +529,82 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /**
-     * Claim one notification across every open tab, so the same completion is
-     * announced once even with several pages of this GUI open.
-     * @param key - stable identity of the event being announced.
-     * @returns whether this tab should announce it.
-     */
-    function claim(key) {
+    let claimsOpening
+    let storageWarningShown = false
+    const memoryClaims = new Map()
+
+    function pruneMemory(now) {
+      for (const [key, expires] of memoryClaims) if (expires <= now) memoryClaims.delete(key)
+    }
+
+    function openClaims() {
+      if (claimsOpening) return claimsOpening
+      const opening = new Promise((resolve, reject) => {
+        if (!globalThis.indexedDB) { reject(new Error('IndexedDB unavailable')); return }
+        const request = globalThis.indexedDB.open(CLAIM_DB, 1)
+        let blocked = false
+        request.onupgradeneeded = () => {
+          const store = request.result.createObjectStore('claims', { keyPath: 'key' })
+          store.createIndex('expiresAt', 'expiresAt')
+        }
+        request.onsuccess = () => {
+          if (blocked) { request.result.close(); return }
+          const db = request.result
+          db.onversionchange = () => {
+            db.close()
+            if (claimsOpening === opening) claimsOpening = undefined
+          }
+          resolve(db)
+        }
+        request.onerror = () => reject(request.error)
+        request.onblocked = () => { blocked = true; reject(new Error('Notification database upgrade blocked')) }
+      })
+      claimsOpening = opening
+      return opening
+    }
+
+    // A readwrite transaction serializes the read + write across all same-origin
+    // windows. Resolve only after commit, so losing windows never announce.
+    async function claim(key) {
+      const now = Date.now()
+      pruneMemory(now)
+      if (key !== undefined && memoryClaims.has(key)) return false
       try {
-        const storageKey = CLAIM_PREFIX + key
-        const previous = Number(globalThis.localStorage?.getItem(storageKey) ?? 0)
-        const now = Date.now()
-        if (Number.isFinite(previous) && now - previous < CLAIM_WINDOW_MS) return false
-        globalThis.localStorage?.setItem(storageKey, String(now))
-        return true
-      } catch (_error) {
+        const db = await openClaims()
+        return await new Promise((resolve, reject) => {
+          const transaction = db.transaction('claims', 'readwrite')
+          const store = transaction.objectStore('claims')
+          const expired = store.index('expiresAt').openCursor(globalThis.IDBKeyRange.upperBound(now))
+          expired.onsuccess = () => {
+            const cursor = expired.result
+            if (cursor) { cursor.delete(); cursor.continue() }
+          }
+          let won = false
+          let expiresAt = now + CLAIM_TTL_MS
+          if (key !== undefined) {
+            const request = store.get(key)
+            request.onsuccess = () => {
+              if (request.result && request.result.expiresAt > now) { expiresAt = request.result.expiresAt; return }
+              store.put({ key, expiresAt: now + CLAIM_TTL_MS })
+              won = true
+            }
+          }
+          transaction.oncomplete = () => {
+            if (key !== undefined) memoryClaims.set(key, expiresAt)
+            resolve(won)
+          }
+          transaction.onabort = () => reject(transaction.error ?? new Error('Notification transaction aborted'))
+          transaction.onerror = () => {} // onabort handles the failure once.
+        })
+      } catch (error) {
+        if (!storageWarningShown) {
+          storageWarningShown = true
+          console.warn('[turn-notify] Shared storage unavailable; deduplication is limited to this window.', error)
+        }
+        // Concurrent callers in this window must recheck after the failed await.
+        pruneMemory(Date.now())
+        if (key === undefined || memoryClaims.has(key)) return false
+        memoryClaims.set(key, Date.now() + CLAIM_TTL_MS)
         return true
       }
     }
@@ -524,7 +634,8 @@ window.__ModuleLoader__.load({
     }
 
     /** Final path segment, used when a session has no stored title yet. */
-    function baseName(path) {      if (typeof path !== 'string' || path === '') return ''
+    function baseName(path) {
+      if (typeof path !== 'string' || path === '') return ''
       const trimmed = path.replace(/[/\\]+$/, '')
       const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
       return trimmed.slice(cut + 1)
@@ -536,38 +647,29 @@ window.__ModuleLoader__.load({
       return title || baseName(summary?.cwd) || 'DSH'
     }
 
-    /** Settings row with the switch that asks the browser for permission. */
+    /** Master reminder switch with a separate system permission action. */
     function NotificationsRow(props) {
       const t = typeof props.t === 'function' ? props.t : key => dictionaries.en[key] ?? key
       const supported = typeof globalThis.Notification !== 'undefined'
-      const [enabled, setEnabled] = React.useState(readEnabled)
+      const enabled = usePreference(readEnabled)
       const [permission, setPermission] = React.useState(supported ? globalThis.Notification.permission : 'unsupported')
-
-      const enable = async () => {
+      React.useEffect(() => {
+        const refresh = () => setPermission(typeof globalThis.Notification === 'undefined' ? 'unsupported' : globalThis.Notification.permission)
+        globalThis.addEventListener?.('focus', refresh)
+        return () => globalThis.removeEventListener?.('focus', refresh)
+      }, [])
+      const allowSystem = async () => {
+        const epoch = activation
         const next = await requestPermission()
+        if (!active || activation !== epoch) return
         setPermission(next)
-        if (next === 'granted') {
-          writeEnabled(true)
-          setEnabled(true)
-          fireConfirmation(t)
-        }
+        fireConfirmation(t)
       }
-
-      const toggle = () => {
-        if (!supported) return
-        if (enabled && permission === 'granted') {
-          writeEnabled(false)
-          setEnabled(false)
-          return
-        }
-        void enable()
-      }
-
-      const active = enabled && permission === 'granted'
-      const description = !supported ? t('unsupported')
-        : permission === 'denied' ? t('blocked')
-          : permission === 'default' ? t('unasked')
-            : active ? t('onText') : t('offText')
+      const toggle = () => { writeEnabled(!readEnabled()) }
+      const active = enabled
+      const detail = !supported ? t('unsupported') : permission === 'denied' ? t('blocked')
+        : permission === 'default' ? t('unasked') : ''
+      const description = enabled ? [t('onText'), detail].filter(Boolean).join(' ') : t('offText')
       return h('div', { className: 'dsh-turn-notify-row' },
         h('style', null, CSS),
         h('div', { className: 'dsh-turn-notify-copy' },
@@ -576,7 +678,10 @@ window.__ModuleLoader__.load({
             className: 'dsh-turn-notify-desc',
             'data-tone': !supported || permission === 'denied' ? 'warn' : undefined,
           }, description),
-          permission === 'granted'
+          enabled && permission === 'default' ? h('button', {
+            type: 'button', className: 'dsh-turn-notify-link', onClick: () => { void allowSystem() },
+          }, t('allowSystem')) : null,
+          enabled
             ? h('button', {
               type: 'button',
               className: 'dsh-turn-notify-link',
@@ -590,7 +695,6 @@ window.__ModuleLoader__.load({
           'aria-label': t('label'),
           className: 'dsh-turn-notify-switch',
           onClick: toggle,
-          disabled: !supported,
         }, h('span', { className: 'dsh-turn-notify-knob' })))
     }
 
@@ -601,23 +705,21 @@ window.__ModuleLoader__.load({
     function EnablePrompt(props) {
       const t = typeof props.t === 'function' ? props.t : key => dictionaries.en[key] ?? key
       const supported = typeof globalThis.Notification !== 'undefined'
-      const [dismissed, setDismissed] = React.useState(readDismissed)
+      const dismissed = usePreference(readDismissed)
+      const enabled = usePreference(readEnabled)
       const [permission, setPermission] = React.useState(supported ? globalThis.Notification.permission : 'unsupported')
-      if (!supported || dismissed || permission !== 'default') return null
+      if (!enabled || !supported || dismissed || permission !== 'default') return null
 
       const enable = async () => {
+        const epoch = activation
         const next = await requestPermission()
+        if (!active || activation !== epoch) return
         setPermission(next)
         writeDismissed(true)
-        setDismissed(true)
-        if (next === 'granted') {
-          writeEnabled(true)
-          fireConfirmation(t)
-        }
+        fireConfirmation(t)
       }
       const later = () => {
         writeDismissed(true)
-        setDismissed(true)
       }
       return h('div', { className: 'dsh-turn-notify-prompt' },
         h('style', null, CSS),
@@ -640,11 +742,10 @@ window.__ModuleLoader__.load({
     /** Second settings row: whether the chime plays with a notice. */
     function SoundRow(props) {
       const t = typeof props.t === 'function' ? props.t : key => dictionaries.en[key] ?? key
-      const [enabled, setEnabled] = React.useState(readSound)
+      const enabled = usePreference(readSound)
       const toggle = () => {
-        const next = !enabled
+        const next = !readSound()
         writeSound(next)
-        setEnabled(next)
         if (next) playChime()
       }
       return h('div', { className: 'dsh-turn-notify-row' },
@@ -707,20 +808,51 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, dictionaries), 'turn-notify: dictionaries')
         const t = ctx.locale.bind(NS)
+        active = true
+        const epoch = ++activation
+        ctx.effect(() => {
+          const onStorage = event => {
+            if (event.key !== null && ![ENABLED_KEY, SOUND_KEY, DISMISS_KEY].includes(event.key)) return
+            if (event.key === null) { unsavedPreferences.clear(); memoryPreferences.clear() }
+            else unsavedPreferences.delete(event.key)
+            for (const listener of preferenceListeners) listener()
+            if (!readEnabled()) clearToast()
+            if (!readEnabled() || !readSound()) stopAudio()
+          }
+          globalThis.addEventListener?.('storage', onStorage)
+          // Remove the obsolete five-second localStorage claims from v1.0.0.
+          try {
+            const storage = globalThis.localStorage
+            for (let i = (storage?.length ?? 0) - 1; i >= 0; i--) {
+              const key = storage.key(i)
+              if (key?.startsWith(CLAIM_PREFIX)) storage.removeItem(key)
+            }
+          } catch (_error) {}
+          void claim(undefined) // Lazy expiry cleanup also runs at startup.
+          return () => {
+            active = false
+            globalThis.removeEventListener?.('storage', onStorage)
+            clearToast()
+            stopAudio()
+            const opening = claimsOpening
+            claimsOpening = undefined
+            memoryClaims.clear()
+            void opening?.then(db => db.close(), () => {})
+          }
+        }, 'turn-notify: preferences and cleanup')
 
-        /** Announce one event through the browser; silently no-ops without permission. */
-        const announce = (sessionId, kind, interaction, summary) => {
-          const permission = typeof globalThis.Notification === 'undefined' ? 'unsupported' : globalThis.Notification.permission
+        /** Claim an event, then deliver the channels allowed by current preferences. */
+        const announce = async (sessionId, kind, interaction, summary, isCurrent) => {
           if (!readEnabled()) return
-          const key = sessionId + ':' + kind + ':' + (interaction?.key ?? summary?.updatedAt ?? '')
-          if (!claim(key)) return
+          const key = JSON.stringify([sessionId, kind, interaction?.key ?? summary?.updatedAt ?? 'unknown'])
+          if (!await claim(key) || !active || activation !== epoch || !readEnabled() || !isCurrent()) return
           const body = kind === 'needs-input' ? t('needsInput') : t('turnEnd')
           const title = sessionTitle(summary)
           // The in-app notice is the reliable channel; the system notification is
           // attempted when the browser allows it, and its absence changes nothing.
           pushToast({ title, body, sessionId })
           playChime()
-          if (permission !== 'granted') return
+          if (typeof globalThis.Notification === 'undefined' || globalThis.Notification.permission !== 'granted') return
           try {
             const notification = new globalThis.Notification(title, {
               body,
@@ -763,7 +895,7 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const schedule = (sessionId) => {
+          const schedule = (sessionId, observation) => {
             cancel(sessionId)
             const timer = setTimeout(() => {
               timers.delete(sessionId)
@@ -771,7 +903,7 @@ window.__ModuleLoader__.load({
               if (current === undefined || current.running !== false) return
               // A pending interaction ends the turn too; its own notice already covers it.
               if (current.pendingInteraction !== undefined) return
-              announce(sessionId, 'turn-end', undefined, sessionSummary(sessionId))
+              void announce(sessionId, 'turn-end', undefined, sessionSummary(sessionId), () => previous?.get(sessionId) === observation)
             }, TURN_END_DELAY_MS)
             timers.set(sessionId, timer)
           }
@@ -782,18 +914,20 @@ window.__ModuleLoader__.load({
             for (const [sessionId, value] of snapshot) {
               const summary = sessionSummary(sessionId)
               const pendingKey = value.pendingInteraction?.key
-              next.set(sessionId, { running: value.running, pendingKey })
+              const before = previous?.get(sessionId)
+              const observation = before && before.running === value.running && before.pendingKey === pendingKey
+                ? before : { running: value.running, pendingKey }
+              next.set(sessionId, observation)
               if (previous === null) continue
-              const before = previous.get(sessionId)
               if (before === undefined) continue
               // Subagent runs finish constantly; only the sessions the user
               // opened are worth interrupting for.
               if (summary?.origin === 'subagent' || summary?.blank === true) continue
               if (pendingKey !== undefined && pendingKey !== before.pendingKey) {
-                announce(sessionId, 'needs-input', value.pendingInteraction, summary)
+                void announce(sessionId, 'needs-input', value.pendingInteraction, summary, () => status.getSnapshot().get(sessionId)?.pendingInteraction?.key === pendingKey)
               }
               if (value.running === true) cancel(sessionId)
-              if (value.running === false && before.running === true) schedule(sessionId)
+              if (value.running === false && before.running === true) schedule(sessionId, observation)
             }
             for (const sessionId of timers.keys()) {
               if (!next.has(sessionId)) cancel(sessionId)

@@ -1,6 +1,6 @@
 {
   "name": "dsh-turn-notify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Desktop and browser notifications for DSH: get notified when a turn finishes or the agent waits for your confirmation.",
   "type": "module",
   "license": "MIT",
@@ -36,7 +36,11 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "README.zh-CN.md",
+    "MARKET-INDEX.md",
+    "CHANGELOG.md",
+    "RELEASE.md"
   ],
   "dsh": {
     "bundle": {
@@ -51,5 +55,20 @@
         "@deepseek-ai/dsh-client-locale"
       ]
     }
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-plugin-market-index": "0.2.2-rc.3",
+    "fake-indexeddb": "6.2.8"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check client.js && node --check index.js",
+    "check:index": "node scripts/check-index.mjs",
+    "check:package": "node scripts/check-package.mjs",
+    "verify": "npm run check && npm test && npm run check:index && npm run check:package",
+    "release:index": "node scripts/prepare-index.mjs"
+  },
+  "engines": {
+    "dsh": "0.2.2-rc.2 || 0.2.2-rc.3"
   }
 }

@@ -38,3 +38,9 @@ Then add the package name to `dsh.profile.bundles` and reload DSH.
 Include your DSH version, your OS, whether you are in the desktop app or a browser, and the
 exact steps. For notification problems, say whether the in-app toast appeared, since that
 separates a permission issue from an event-detection issue.
+
+## Checks
+
+Run `npm ci`, `npm run verify` with Node.js 24.9 or newer. Tests use Node’s test runner, a minimal mocked DSH/React environment, and `fake-indexeddb` for shared-storage transactions. This is a development dependency only. OS banner rendering and browser audio policies still require manual Desktop/browser checks.
+
+`npm run verify` also validates the market index using the official DSH validator, checks package/lock versions, local documentation links and the actual npm pack file list. The workflow in `.github/workflows/ci.yml` runs these checks without publishing anything.
