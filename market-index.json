@@ -52,6 +52,18 @@
       },
       "versions": [
         {
+          "version": "1.0.1",
+          "publishTimestamp": 1794657333,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Ly007-dotcom/dsh-turn-notify",
+            "commit": "6b8e9f3fd72447ef2b1d979ea818dec30687cf98"
+          },
+          "engines": {
+            "dsh": "0.2.2-rc.2 || 0.2.2-rc.3"
+          }
+        },
+        {
           "version": "1.0.0",
           "publishTimestamp": 1794495655,
           "source": {
